@@ -1,5 +1,9 @@
 
-/* Comentario general: En la tabla transacciones hay un campo llamado declined. Indica si la transacción está realizada o no.
+/*
+La tabla transaction y la tabla company se relacionan mediante los campos company(id) y los campos transaction(company_id).
+La tabla company es la tabla maestro y la tabla transaction es la tabla de hechos. 
+La cardinalidad de las tablas es uno (company) a muchos (transaction).  
+Comentario general: En la tabla transacciones hay un campo llamado declined. Indica si la transacción está realizada o no.
 En aquellos ejercicios en los que se solicitan las ventas se han incluido sólo los que tienen el campo 0 en declined. Para
 aquellos casos en que se solicitan el número de transacciones he tenido en cuenta todo.*/
 
@@ -59,16 +63,21 @@ WHERE company.country= "Germany";
 
 # SOLUCIÓN 1 :  "WHERE IN" FILTRAMOS AQUELLAS EMPRESAS QUE SON ALEMANAS
 
-SELECT transaction.id
+SELECT transaction.id, company.company_name, transaction.amount
 FROM transactions.transaction
+JOIN transactions.company
+ON transaction.company_id = company.ID
 WHERE transaction.company_id  IN (	SELECT company.id 
 									FROM transactions.company
 									WHERE company.country= "Germany");
+
                                     
 # SOLUCIÓN 2 : USANDO   "WHERE EXIST" FILTRAMOS AQUELLAS EMPRESAS QUE SON ALEMANAS
 
-SELECT  transaction.id
+SELECT  transaction.id, company.company_name, transaction.amount
 FROM transactions.transaction
+JOIN transactions.company
+ON transaction.company_id = company.ID
 WHERE EXISTS (	SELECT company.id 
 				FROM transactions.company
 				WHERE company.country= "Germany" AND transaction.company_id  = company.id );
@@ -94,12 +103,13 @@ WHERE  transaction.amount > (	SELECT AVG(AMOUNT)
 
 #Query final - DE LA QUERY ANTERIOR, USAMOS EL DISTINCT PARA LISTAR LAS EMPRESAS QUE HACEN TRANSACCIONES.
 
-SELECT DISTINCT company.company_name
+SELECT DISTINCT company.company_name, company.phone, company.email, company.country
 FROM transactions.transaction
 LEFT JOIN transactions.company
 ON transaction.company_id = company.id
 WHERE  transaction.amount > (	SELECT AVG(AMOUNT)
 								FROM transactions.transaction);
+
 
 #Eliminaran del sistema les empreses que no tenen transaccions registrades, entrega el llistat d'aquestes empreses.
 
@@ -177,19 +187,18 @@ WHERE  company.country = (	SELECT company.country
 							FROM transactions.company
 							WHERE company.company_name = "Non Institute");
                             
-#CON ESTA QUERY DE ARRIBA HAREMOS UNA DERIVED TABLE ( LA CUAL INCLUYE UNA NESTED SUBQUERY) Y LA USAREMOS PARA FILTRAR  MEDIANTE UN INNER JOIN
-                            
+#Esta query la usaremos para filtrar en el WHERE
                             
 SELECT  transaction.id, company.company_name, transaction.amount, company.country
 FROM transactions.transaction
-LEFT JOIN transactions.company
+JOIN transactions.company
 ON transaction.company_id = company.id
-INNER JOIN 	(SELECT  company.company_name AS company_name  # Usamos el innerjoin para filtrar la select original
-		FROM  transactions.company
-		WHERE  company.country = (	SELECT company.country
-									FROM transactions.company
-									WHERE company.company_name = "Non Institute"))  AS subquery
-ON  company.company_name = subquery.company_name;
+WHERE company.company_name IN  	(	SELECT  company.company_name AS company_name
+										FROM  transactions.company
+										WHERE  company.country = (	SELECT company.country
+																	FROM transactions.company
+																	WHERE company.company_name = "Non Institute"));                            
+
                                     
 /* B Mostra el llistat aplicant solament subconsultes.*/
 
@@ -199,16 +208,24 @@ SELECT company.country
 FROM transactions.company
 WHERE company.company_name = "Non Institute" ;
 
+# Hacemos otra subquery para listar el id de las empresas que están en el reino unido.
 
-# COGEMOS LAS NESTED SUBQUERY DEL APARTADO DE ARRIBA Y LA PONEMOS EN EL WHERE IN.
-
-SELECT  transaction.id, company.company_name, transaction.amount, company.country
-FROM transactions.transaction
-LEFT JOIN transactions.company
-ON transaction.company_id = company.id
-WHERE company.country  = (	SELECT company.country
+SELECT company.id
+FROM  transactions.company
+WHERE  company.country = (	SELECT company.country
 							FROM transactions.company
 							WHERE company.company_name = "Non Institute");
+                            
+                            
+# Usamos la nested subquery anterior para sacar las transacciones sin tener que usar un JOIN
+SELECT  transaction.id
+FROM transactions.transaction
+WHERE transaction.company_id IN  	(	SELECT  company.id
+										FROM  transactions.company
+										WHERE  company.country = (	SELECT company.country
+																	FROM transactions.company
+																	WHERE company.company_name = "Non Institute"));
+
                             
 /*Nivell 3*/
 
@@ -224,10 +241,11 @@ i 13 de març del 2022. Ordena els resultats de major a menor quantitat.*/
 
 SELECT   company.company_name, company.phone, company.country, DATE(transaction.timestamp) ,transaction.amount
 FROM transactions.transaction
-LEFT JOIN transactions.company
+JOIN transactions.company
 ON transaction.company_id = company.id
 WHERE  (transaction.amount BETWEEN 100 AND 200)   
-AND  DATE(transaction.timestamp) IN ( "2021-04-29",  "2021-07-20", "2022-03-13");
+AND  DATE(transaction.timestamp) IN ( "2021-04-29",  "2021-07-20", "2022-03-13")
+ORDER BY 5 DESC;
 
 
 
@@ -251,7 +269,7 @@ ON transaction.company_id = company.id
 GROUP BY company.company_name
 ORDER BY 2 DESC;
 
-# Dioni 17.41
+# Dioni 2128
 
 
 
